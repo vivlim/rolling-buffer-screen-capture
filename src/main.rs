@@ -2,6 +2,7 @@ use std::{convert::TryInto, fs::{self, File}, io::{ErrorKind::WouldBlock, Write}
 
 use bounded_vec_deque::BoundedVecDeque;
 use hotkey::modifiers;
+use notify_rust::Notification;
 use scrap::{Capturer, Display};
 use turbojpeg::{Compressor, Image};
 
@@ -101,7 +102,7 @@ fn main() {
         let dir = format!("rolling_buffer_{}", chrono::Local::now().format("%Y%m%d-%H_%M_%S"));
         let dir = Path::new(&dir);
         println!("dumping jpegs to dir; {}", &dir.display());
-        fs::create_dir(dir).unwrap();
+        fs::create_dir(&dir).unwrap();
         {
             let mut frames = frames.lock().unwrap();
             let frames_len = frames.len();
@@ -113,12 +114,21 @@ fn main() {
                 index += 1;
             }
 
+            Notification::new()
+                .summary(format!("Wrote {} frames as jpegs", index).as_str())
+                .body(format!("To a folder \"{}\".", dir.display()).as_str())
+                .show().unwrap();
         }
 
 
     }).unwrap();
 
-    println!("Press shift+super+R to dump the last 30 seconds into a folder (in the form of jpegs for now)");
+    println!("Press shift+super+R to dump the last {} seconds into a folder (in the form of jpegs for now)", buffer_duration.as_secs());
+
+    Notification::new()
+        .summary(format!("Recording last {} seconds at up to {} fps", buffer_duration.as_secs(), target_fps).as_str())
+        .body("shift+super+R will export a folder of jpegs")
+        .show().unwrap();
     hk.listen();
 
     capture_loop.join().unwrap().unwrap()

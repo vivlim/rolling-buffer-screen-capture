@@ -82,7 +82,6 @@ fn main() {
                     }
                 },
                 None => {
-                    println!("no new frame")
                 }
             }
 

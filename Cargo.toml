@@ -1,0 +1,14 @@
+[package]
+name = "rolling-buffer-screen-capture"
+version = "0.1.0"
+authors = ["Viv Lim <git@vvn.space>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+scrap = "0.5"
+bounded-vec-deque = "0.1.0"
+turbojpeg = "0.1.0"
+hotkey = "0.3.1"
+chrono = "0.4.19"

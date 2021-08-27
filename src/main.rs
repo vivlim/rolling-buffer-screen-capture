@@ -1,5 +1,4 @@
-use std::{convert::TryInto, fs::{self, File}, io::{BufWriter, ErrorKind::WouldBlock, Write}, path::Path, sync::{Arc, Mutex}, thread, time::{Duration, Instant, SystemTime}};
-
+use std::{convert::TryInto, fs::{self, File}, io::{ErrorKind::WouldBlock, Write}, path::Path, sync::{Arc, Mutex}, thread, time::{Duration, Instant}};
 
 use bounded_vec_deque::BoundedVecDeque;
 use hotkey::modifiers;
@@ -12,12 +11,9 @@ fn main() {
 
     let buffer_duration = Duration::from_secs(30);
 
-    let num_frames_to_batch = 1;
-
     let num_frames: usize = (buffer_duration.as_millis() / frame_duration.as_millis()).try_into().unwrap();
-    let num_batches = num_frames / num_frames_to_batch;
 
-    let mut frames = Arc::new(Mutex::new(BoundedVecDeque::with_capacity(num_batches, num_batches)));
+    let mut frames = Arc::new(Mutex::new(BoundedVecDeque::with_capacity(num_frames, num_frames)));
     let mut frames_for_loop_thread = frames.clone();
     let mut frames_for_key_handler = frames.clone();
 
@@ -28,10 +24,11 @@ fn main() {
         let height = display.height();
         let mut capturer = Capturer::new(display).expect("Couldn't begin capture.");
 
-
-        let mut reusable_buffer: Option<Vec<u8>> = None;
-
-        let mut raw_frame_size = None;
+        // report every this many frames
+        let report_frequency = target_fps * 5;
+        let mut loop_idx = 0;
+        let mut max_compressed_len = 0;
+        let mut max_uncompressed_len = 0;
 
         let mut compressor = Compressor::new().unwrap();
         compressor.set_quality(80);
@@ -40,63 +37,54 @@ fn main() {
         loop {
             let start_time = Instant::now();
 
-            let mut destination_buffer = vec![];
+            // Get capture frame if there is one.
+            let current_frame = match capturer.frame() {
+                Ok(captured_frame_buffer) => {
+                    let input_image = Image {
+                        pixels: &captured_frame_buffer as &[u8],
+                        width: width,
+                        pitch: width * 4,
+                        height: height,
+                        format: turbojpeg::PixelFormat::BGRA,
+                    };
+                    match compressor.compress_to_vec(input_image) {
+                        Ok(buf) => {
 
-            //let mut writer = snap::write::FrameEncoder::new(destination_buffer);
-
-            for i in 0..num_frames_to_batch {
-
-                match capturer.frame() {
-                    Ok(captured_frame_buffer) => {
-                        match raw_frame_size {
-                            Some(_) => {
-                                if let Some(raw_frame_size) = raw_frame_size {
-                                    if raw_frame_size != captured_frame_buffer.len() {
-                                        panic!("frame size has changed in the middle of recording {} != {}", raw_frame_size, captured_frame_buffer.len());
-                                    }
-                                }
-                            }
-                            None => {
-                                raw_frame_size = Some(captured_frame_buffer.len());
-                            }
-                        }
-                        let input_image = Image {
-                            pixels: &captured_frame_buffer as &[u8],
-                            width: width,
-                            pitch: width * 4,
-                            height: height,
-                            format: turbojpeg::PixelFormat::BGRA,
-                        };
-                        match compressor.compress_to_vec(input_image) {
-                            Ok(buf) => {
-                                destination_buffer = buf;
-                            },
-                            Err(e) => panic!("error compressing {:?}", e),
-                        }
-                        //let uncompressed_bytes_written = writer.write(&captured_frame_buffer).unwrap();
-                    },
-                    Err(error) => {
-                        if error.kind() == WouldBlock {
-                            // Keep spinning until a frame is ready.
-                            thread::sleep(frame_duration);
-                            continue;
-                        } else {
-                            return Err(error);
-                        }
-
+                            max_compressed_len = usize::max(max_compressed_len, buf.len());
+                            max_uncompressed_len = usize::max(max_uncompressed_len, captured_frame_buffer.len());
+                            Some(buf)
+                        },
+                        Err(e) => panic!("error compressing {:?}", e),
+                    }
+                },
+                Err(error) => {
+                    if error.kind() == WouldBlock {
+                        // No frame right now.
+                        None
+                    } else {
+                        return Err(error);
                     }
 
-                };
+                }
+            };
 
+            match current_frame {
+                Some(current_frame) => {
+                    // Put it in the ring
+                    let mut frames = frames.lock().unwrap();
+                    frames.push_back(current_frame);
+
+                    if loop_idx % report_frequency == 0 { // every ~5 seconds report memory usage
+                        let total_mem: usize = frames.iter().map(|f| f.len()).sum();
+                        println!("largest frame: {}KB -> {}KB ({:.1}% compression ratio). total mem use: {}MB for {} slots", max_uncompressed_len/1024, max_compressed_len/1024, (max_compressed_len as f32 / max_uncompressed_len as f32) * 100.0, total_mem/1024/1024, frames.len());
+                        max_compressed_len = 0;
+                        max_uncompressed_len = 0;
+                    }
+                },
+                None => {
+                    println!("no new frame")
+                }
             }
-            //writer.flush().unwrap();
-            //destination_buffer = writer.into_inner().unwrap();
-
-            let compressed_len = destination_buffer.len();
-            let uncompressed_len = raw_frame_size.unwrap() * num_frames_to_batch;
-
-            let mut frames = frames.lock().unwrap();
-            frames.push_back(destination_buffer);
 
             let time_ran = Instant::now().duration_since(start_time);
             if time_ran < frame_duration {
@@ -104,12 +92,8 @@ fn main() {
             } else {
                 println!("falling behind");
             }
-
-            // get total memory in use
-            let total_mem: usize = frames.iter().map(|f| f.len()).sum();
-            println!("compressed: {} -> {} ({:.1}%). total use: {}MB for {} slots", uncompressed_len, compressed_len, (compressed_len as f32 / uncompressed_len as f32) * 100.0, total_mem/1024/1024, frames.len());
+            loop_idx += 1;
         }
-        Ok(())
     });
 
     let mut hk = hotkey::Listener::new();
@@ -134,6 +118,8 @@ fn main() {
 
 
     }).unwrap();
+
+    println!("Press shift+super+R to dump the last 30 seconds into a folder (in the form of jpegs for now)");
     hk.listen();
 
     capture_loop.join().unwrap().unwrap()

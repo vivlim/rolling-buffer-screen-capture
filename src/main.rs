@@ -212,11 +212,11 @@ fn main() {
 
     }).unwrap();
 
-    println!("Press shift+super+R to dump the last {} seconds into a folder (in the form of jpegs for now)", buffer_duration.as_secs());
+    println!("Press shift+super+R to write up to the last {} seconds into a video", buffer_duration.as_secs());
 
     Notification::new()
         .summary(format!("Recording last {} seconds at up to {} fps", buffer_duration.as_secs(), target_fps).as_str())
-        .body("shift+super+R will export a folder of jpegs")
+        .body("shift+super+R will export a video")
         .show().unwrap();
     hk.listen();
 

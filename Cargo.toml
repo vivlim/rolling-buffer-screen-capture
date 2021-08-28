@@ -13,3 +13,6 @@ turbojpeg = "0.1.0"
 hotkey = "0.3.1"
 chrono = "0.4.19"
 notify-rust = "4.5.2"
+ffmpeg-next = "4.3.8"
+ffmpeg-frame-encoder = { git = "https://github.com/vivlim/ffmpeg-frame-encoder.git", commit = "5b899ea" }
+crossbeam-channel = "0.5.1"

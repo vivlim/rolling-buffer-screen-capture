@@ -6,6 +6,22 @@ use notify_rust::Notification;
 use scrap::{Capturer, Display};
 use turbojpeg::{Compressor, Image};
 
+fn get_capturable_display() -> Capturer {
+    for display in Display::all().unwrap() {
+        match Capturer::new(display) {
+            Ok(cap) => {
+                return cap;
+            },
+            Err(e) => {
+                eprintln!("Couldn't get display because of {:?}", e);
+            }
+
+        }
+
+    }
+    panic!("no capturable displays");
+}
+
 fn main() {
     let target_fps  = 15;
     let frame_duration = Duration::from_secs(1) / target_fps;
@@ -14,16 +30,15 @@ fn main() {
 
     let num_frames: usize = (buffer_duration.as_millis() / frame_duration.as_millis()).try_into().unwrap();
 
-    let mut frames = Arc::new(Mutex::new(BoundedVecDeque::with_capacity(num_frames, num_frames)));
+    let mut frames: Arc<Mutex<BoundedVecDeque<Vec<u8>>>> = Arc::new(Mutex::new(BoundedVecDeque::with_capacity(num_frames, num_frames)));
     let mut frames_for_loop_thread = frames.clone();
     let mut frames_for_key_handler = frames.clone();
 
     let capture_loop = thread::spawn(move ||{
         let frames = frames_for_loop_thread;
-        let display = Display::primary().expect("Couldn't find primary display.");
-        let width = display.width();
-        let height = display.height();
-        let mut capturer = Capturer::new(display).expect("Couldn't begin capture.");
+        let mut capturer = get_capturable_display();
+        let width = capturer.width();
+        let height = capturer.height();
 
         // report every this many frames
         let report_frequency = target_fps * 5;
@@ -41,10 +56,11 @@ fn main() {
             // Get capture frame if there is one.
             let current_frame = match capturer.frame() {
                 Ok(captured_frame_buffer) => {
+                    let stride = &captured_frame_buffer.len() / height;
                     let input_image = Image {
                         pixels: &captured_frame_buffer as &[u8],
                         width: width,
-                        pitch: width * 4,
+                        pitch: stride,
                         height: height,
                         format: turbojpeg::PixelFormat::BGRA,
                     };

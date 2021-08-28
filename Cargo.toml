@@ -13,3 +13,6 @@ turbojpeg = "0.1.0"
 hotkey = "0.3.1"
 chrono = "0.4.19"
 notify-rust = "4.5.2"
+ffmpeg-next = "4.3.8"
+libav-frame-encoder = { path = "../libav-frame-encoder" }
+crossbeam-channel = "0.5.1"

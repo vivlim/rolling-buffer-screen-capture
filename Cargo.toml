@@ -1,6 +1,6 @@
 [package]
 name = "rolling-buffer-screen-capture"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Viv Lim <git@vvn.space>"]
 edition = "2018"
 
@@ -13,6 +13,18 @@ turbojpeg = "0.1.0"
 hotkey = "0.3.1"
 chrono = "0.4.19"
 notify-rust = "4.5.2"
-ffmpeg-next = "4.3.8"
-ffmpeg-frame-encoder = { git = "https://github.com/vivlim/ffmpeg-frame-encoder.git", commit = "5b899ea" }
+ffmpeg-next = "5.1.1"
+libav-frame-encoder = { git = "https://github.com/vivlim/ffmpeg-frame-encoder.git", commit = "77ccee" }
 crossbeam-channel = "0.5.1"
+
+[build-dependencies]
+vcpkg = "0.2.15"
+
+[package.metadata.vcpkg]
+git = "https://github.com/microsoft/vcpkg"
+rev = "552f1ee"
+dependencies = ["ffmpeg", "libjpeg-turbo"]
+
+
+[package.metadata.vcpkg.target]
+x86_64-pc-windows-msvc = { triplet = "x64-windows-static-md" }

@@ -1,7 +1,7 @@
 use std::{convert::TryInto, path::{Path, PathBuf}, thread::{self, JoinHandle}, time::Duration};
 
 use crossbeam_channel::SendError;
-use ffmpeg_frame_encoder::{encoder::{OutputArgs}, sink::{Frame, FrameData, Sink, VideoPlane}};
+use libav_frame_encoder::{encoder::{OutputArgs}, sink::{Frame, FrameData, Sink, VideoPlane}};
 use turbojpeg::{Decompressor, Image, PixelFormat};
 
 pub fn encode_jpegs_to_video(path: PathBuf, output_args: OutputArgs, jpegs: Vec<Vec<u8>>) -> JoinHandle<Result<(), ()>>{
@@ -70,7 +70,7 @@ struct JpegVideoEncoder {
 impl JpegVideoEncoder {
     pub fn new(path: PathBuf, output_args: OutputArgs) -> Result<Self, SendError<Frame<FrameData>>>{
         let sink: Sink<Frame<FrameData>> = Default::default();
-        let encoder_thread = ffmpeg_frame_encoder::encoder::start_thread(sink.output.clone(), path);
+        let encoder_thread = libav_frame_encoder::encoder::start_thread(sink.output.clone(), path);
 
         sink.input.send(Frame {
             data: FrameData::Configure(output_args),

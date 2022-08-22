@@ -3,7 +3,7 @@ use std::{convert::TryInto, fs::{self, File}, io::{ErrorKind::WouldBlock, Write}
 use bounded_vec_deque::BoundedVecDeque;
 use ffmpeg_next::format::Pixel;
 use hotkey::modifiers;
-use ffmpeg_frame_encoder::encoder::{OutputArgs, VideoArgs};
+use libav_frame_encoder::encoder::{OutputArgs, VideoArgs};
 use notify_rust::Notification;
 use scrap::{Capturer, Display};
 use turbojpeg::{Compressor, Image};

@@ -10,7 +10,9 @@ you need to have libjpeg-turbo and ffmpeg available to build.
 
 ### windows
 
-1. install [vcpkg](https://vcpkg.io/en/getting-started.html)
-2. install `ffmpeg` via vcpkg
-3. install https://sourceforge.net/projects/libjpeg-turbo/files/2.1.1/libjpeg-turbo-2.1.1-vc64.exe/download (or newer from [libjpeg-turbo's website](https://libjpeg-turbo.org/)) (todo: see if this can be installed via vcpkg too)
-4. copy turbojpeg.lib into the current directory, i.e. `cp "C:\libjpeg-turbo64\lib\turbojpeg.lib" .`
+0. open a developer powershell :)
+1. install [vcpkg](https://vcpkg.io/en/getting-started.html) and run `vcpkg integrate install`
+2. `cargo install cargo-vcpkg`
+3. `cargo vcpkg build`
+4. in powershell, `$env:CARGO_FEATURE_STATIC=1` because otherwise ffmpeg tries to link dynamically
+4. `cargo build --release`
